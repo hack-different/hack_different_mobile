@@ -1,12 +1,29 @@
-# Keep kotlinx.serialization generated serializers
--keepattributes *Annotation*, InnerClasses
--dontnote kotlinx.serialization.AnnotationsKt
+# R8 rules for Release (and Staging, which is built like Release). Most libraries the app uses (kotlinx.serialization,
+# OkHttp, Coil, ZXing, AndroidX) ship their own consumer rules; these cover
+# what they don't.
 
--keepclassmembers class kotlinx.serialization.json.** {
-    *** Companion;
+# Keep file names and line numbers so crash and error reports retrace with the build's mapping.txt, without
+# shipping the original source file names.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# kotlinx.serialization: the plugin generates each @Serializable class's serializer, which the app and the
+# AudienceKit SDK look up through the companion's serializer() (and serializer<T>() in the SDK's graphQL()).
+-keepattributes RuntimeVisibleAnnotations,AnnotationDefault,InnerClasses,Signature
+-if @kotlinx.serialization.Serializable class **
+-keepclassmembers class <1> {
+    static <1>$Companion Companion;
 }
--keepclasseswithmembers class kotlinx.serialization.json.** {
+-if @kotlinx.serialization.Serializable class ** {
+    static **$* *;
+}
+-keepclassmembers class <2>$<3> {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep,includedescriptorclasses class com.hackdifferent.**$$serializer { *; }
--keep,includedescriptorclasses class com.audiencekit.**$$serializer { *; }
+-if @kotlinx.serialization.Serializable class ** {
+    public static ** INSTANCE;
+}
+-keepclassmembers class <1> {
+    public static <1> INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
+}

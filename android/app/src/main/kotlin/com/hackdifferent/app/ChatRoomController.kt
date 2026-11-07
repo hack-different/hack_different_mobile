@@ -10,8 +10,12 @@ import com.audiencekit.ChatMessage
 import com.audiencekit.ChatRoomEvent
 import com.audiencekit.ChatRoomUpdate
 import com.audiencekit.ChatRosterPerson
+import com.audiencekit.ReportCopy
+import com.audiencekit.ReportTarget
+import com.audiencekit.blockUser
 import com.audiencekit.chat
 import com.audiencekit.removeChatMessage
+import com.audiencekit.reportContent
 import com.audiencekit.sendChatMessage
 import com.hackdifferent.core.AppConfig
 import com.hackdifferent.core.ChatRoomTarget
@@ -48,6 +52,12 @@ class ChatRoomController(
         private set
     var sendError by mutableStateOf<String?>(null)
         private set
+
+    /** A short confirmation after a report or block ("Thanks. The admins will look at it."). */
+    var notice by mutableStateOf<String?>(null)
+
+    /** Members blocked from this room this session: their messages are hidden right away. */
+    private var blockedUserIds by mutableStateOf<Set<String>>(emptySet())
 
     private var subscriptionJob: Job? = null
 
@@ -99,6 +109,38 @@ class ChatRoomController(
         }
     }
 
+    /** Reports a message to the audience's admins (Play UGC policy, App Store 1.2), optionally blocking its sender. */
+    fun reportMessage(message: ChatMessage, reason: String?, block: Boolean) {
+        scope.launch {
+            try {
+                val result = client.reportContent(ReportTarget.MESSAGE, message.id.lowercase(), reason, block)
+                if (result.blocked) message.userId?.let(::hideSender)
+                notice = if (result.blocked) "${ReportCopy.REPORTED} ${ReportCopy.BLOCKED}" else ReportCopy.REPORTED
+            } catch (e: Exception) {
+                sendError = e.message ?: "Couldn't send the report."
+            }
+        }
+    }
+
+    /** Blocks a message's sender, so they and the viewer stop seeing each other's messages. */
+    fun blockSender(message: ChatMessage) {
+        val userId = message.userId ?: return
+        scope.launch {
+            try {
+                client.blockUser(userId)
+                hideSender(userId)
+                notice = ReportCopy.BLOCKED
+            } catch (e: Exception) {
+                sendError = e.message ?: "Couldn't block them."
+            }
+        }
+    }
+
+    private fun hideSender(userId: String) {
+        blockedUserIds = blockedUserIds + userId
+        messages = messages.filterNot { it.userId == userId }
+    }
+
     private fun handleUpdate(update: ChatRoomUpdate) {
         when (update) {
             ChatRoomUpdate.Subscribed -> Unit
@@ -122,7 +164,7 @@ class ChatRoomController(
             is ChatRoomEvent.Joined -> {
                 status = if (event.outOfRange) ChatConnectionStatus.OutOfRange else ChatConnectionStatus.Connected
                 participants = event.people
-                messages = event.history
+                messages = event.history.filterNot { it.userId in blockedUserIds }
                 pinnedMessage = event.pinned
             }
             is ChatRoomEvent.Posted -> appendOrUpdateMessage(event.message)
@@ -158,6 +200,7 @@ class ChatRoomController(
     }
 
     private fun appendOrUpdateMessage(item: ChatMessage) {
+        if (item.userId != null && item.userId in blockedUserIds) return
         val index = messages.indexOfFirst { it.id.equals(item.id, ignoreCase = true) }
         messages = if (index >= 0) {
             messages.toMutableList().also { it[index] = item }
