@@ -55,6 +55,7 @@ import com.hackdifferent.app.HackDifferentAppState
 import com.hackdifferent.core.ChatRoomTarget
 import com.hackdifferent.core.ConferenceEvent
 import com.hackdifferent.core.EventKind
+import com.hackdifferent.core.formatEventStart
 import com.hackdifferent.core.formattedAmount
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -253,7 +254,7 @@ private fun EventCard(
 
             event.startAt?.let { start ->
                 Text(
-                    text = start,
+                    text = formatEventStart(start),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
