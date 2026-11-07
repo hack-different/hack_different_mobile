@@ -26,6 +26,19 @@ public final class ChatRoomViewModel {
     public private(set) var participants: [ChatRosterPerson] = []
     public private(set) var isSending = false
     public private(set) var sendError: String?
+    /// A short confirmation after a report or block, shown under the messages.
+    public private(set) var notice: String?
+    /// Members blocked from this screen: their messages are hidden at once, before the server stops sending them.
+    public private(set) var blockedUserIDs: Set<String> = []
+
+    /// The messages to show: everything except what blocked members sent.
+    public var visibleMessages: [ChatMessage] {
+        guard !blockedUserIDs.isEmpty else { return messages }
+        return messages.filter { message in
+            guard let userId = message.userId else { return true }
+            return !blockedUserIDs.contains(userId)
+        }
+    }
 
     private let cable: AudienceCable
     private let client: AudienceKitClient
@@ -78,6 +91,37 @@ public final class ChatRoomViewModel {
         do {
             try await client.removeChatMessage(id: message.id.lowercased())
             messages.removeAll { $0.id == message.id }
+        } catch let error as AudienceKitError {
+            sendError = error.message
+        } catch {
+            sendError = error.localizedDescription
+        }
+    }
+
+    /// Reports a message to the audience's admins (App Store guideline 1.2), optionally blocking its sender.
+    public func report(_ message: ChatMessage, reason: String?, block: Bool) async {
+        sendError = nil
+        do {
+            let result = try await client.reportContent(.message, id: message.id.lowercased(), reason: reason, block: block)
+            if result.blocked, let userId = message.userId {
+                blockedUserIDs.insert(userId)
+            }
+            notice = result.blocked ? "\(ReportCopy.reported) \(ReportCopy.blocked)" : ReportCopy.reported
+        } catch let error as AudienceKitError {
+            sendError = error.message
+        } catch {
+            sendError = error.localizedDescription
+        }
+    }
+
+    /// Blocks a message's sender: neither sees the other's messages any more.
+    public func blockSender(of message: ChatMessage) async {
+        guard let userId = message.userId else { return }
+        sendError = nil
+        do {
+            try await client.blockUser(userId)
+            blockedUserIDs.insert(userId)
+            notice = ReportCopy.blocked
         } catch let error as AudienceKitError {
             sendError = error.message
         } catch {

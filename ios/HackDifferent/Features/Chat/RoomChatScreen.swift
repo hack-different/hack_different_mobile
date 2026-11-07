@@ -15,6 +15,8 @@ struct RoomChatScreen: View {
     @State private var viewModel: ChatRoomViewModel?
     @State private var draftMessage = ""
     @State private var showingRoster = false
+    @State private var reporting: ChatMessage?
+    @State private var blocking: ChatMessage?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,7 +53,7 @@ struct RoomChatScreen: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
-                            if viewModel.messages.isEmpty {
+                            if viewModel.visibleMessages.isEmpty {
                                 ContentUnavailableView(
                                     "No Messages Yet",
                                     systemImage: "bubble.left.and.bubble.right",
@@ -59,15 +61,18 @@ struct RoomChatScreen: View {
                                 )
                                 .padding(.top, 48)
                             } else {
-                                ForEach(viewModel.messages) { message in
+                                ForEach(viewModel.visibleMessages) { message in
                                     ChatMessageBubble(
                                         message: message,
-                                        isMine: message.userId == appModel.session.currentUser?.id
-                                    ) {
-                                        Task {
-                                            await viewModel.deleteOwnMessage(message)
-                                        }
-                                    }
+                                        isMine: message.userId == appModel.session.currentUser?.id,
+                                        onDelete: {
+                                            Task {
+                                                await viewModel.deleteOwnMessage(message)
+                                            }
+                                        },
+                                        onReport: { reporting = message },
+                                        onBlock: { blocking = message }
+                                    )
                                     .id(message.id)
                                 }
                             }
@@ -81,6 +86,14 @@ struct RoomChatScreen: View {
                             }
                         }
                     }
+                }
+
+                if let notice = viewModel.notice, viewModel.sendError == nil {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 4)
                 }
 
                 if let sendError = viewModel.sendError {
@@ -144,6 +157,39 @@ struct RoomChatScreen: View {
                     }
                 }
             }
+        }
+        .confirmationDialog(
+            ReportCopy.reportTitle,
+            isPresented: Binding(get: { reporting != nil }, set: { if !$0 { reporting = nil } }),
+            titleVisibility: .visible,
+            presenting: reporting
+        ) { message in
+            ForEach(ReportCopy.reasons, id: \.self) { reason in
+                Button(reason) {
+                    Task { await viewModel?.report(message, reason: reason, block: false) }
+                }
+            }
+            if message.userId != nil {
+                Button("\(ReportCopy.reportMessage) and block sender", role: .destructive) {
+                    Task { await viewModel?.report(message, reason: nil, block: true) }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text(ReportCopy.reportDetail)
+        }
+        .confirmationDialog(
+            ReportCopy.blockTitle,
+            isPresented: Binding(get: { blocking != nil }, set: { if !$0 { blocking = nil } }),
+            titleVisibility: .visible,
+            presenting: blocking
+        ) { message in
+            Button(ReportCopy.blockPerson, role: .destructive) {
+                Task { await viewModel?.blockSender(of: message) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text(ReportCopy.blockDetail)
         }
         .sheet(isPresented: $showingRoster) {
             NavigationStack {
@@ -269,6 +315,8 @@ private struct ChatMessageBubble: View {
     let message: ChatMessage
     let isMine: Bool
     let onDelete: () -> Void
+    let onReport: () -> Void
+    let onBlock: () -> Void
 
     var body: some View {
         HStack {
@@ -313,6 +361,15 @@ private struct ChatMessageBubble: View {
                     if isMine {
                         Button(role: .destructive, action: onDelete) {
                             Label("Delete Message", systemImage: "trash")
+                        }
+                    } else {
+                        Button(action: onReport) {
+                            Label(ReportCopy.reportMessage, systemImage: "exclamationmark.bubble")
+                        }
+                        if message.userId != nil {
+                            Button(role: .destructive, action: onBlock) {
+                                Label(ReportCopy.blockPerson, systemImage: "hand.raised")
+                            }
                         }
                     }
                 }
