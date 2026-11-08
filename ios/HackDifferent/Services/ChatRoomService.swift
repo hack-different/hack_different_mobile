@@ -40,6 +40,13 @@ public final class ChatRoomViewModel {
         }
     }
 
+    /// Whether the composer belongs on screen: not in a room the server turned away (one hosted on Discord, or one
+    /// the member is out of range of), where a send can only fail.
+    public var canPost: Bool {
+        if case .notPresent = status { return false }
+        return true
+    }
+
     private let cable: AudienceCable
     private let client: AudienceKitClient
     @ObservationIgnored private var subscriptionTask: Task<Void, Never>?
