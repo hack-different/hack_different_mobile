@@ -67,8 +67,10 @@ private struct MainTabView: View {
                 ChatHubScreen()
             }
 
-            Tab("Passes", systemImage: "qrcode.viewfinder", value: AppModel.Tab.passes) {
-                PassesScreen()
+            if AppFeatures.inAppPasses {
+                Tab("Passes", systemImage: "qrcode.viewfinder", value: AppModel.Tab.passes) {
+                    PassesScreen()
+                }
             }
 
             Tab("Profile", systemImage: "person.crop.circle", value: AppModel.Tab.profile) {

@@ -203,8 +203,8 @@ struct VenueDetailScreen: View {
             }
 
             // Ticketing & Venue Cover Pass Section
-            if let detail, (detail.viewerAdmission != nil || detail.coverCharge != nil || !detail.ticketOffers.isEmpty) {
-                Section("Tickets & Venue Pass") {
+            if let detail, (detail.viewerAdmission != nil || (AppFeatures.inAppPasses && detail.coverCharge != nil) || !detail.ticketOffers.isEmpty) {
+                Section(AppFeatures.inAppPasses ? "Tickets & Venue Pass" : "Tickets") {
                     if let admission = detail.viewerAdmission {
                         NavigationLink {
                             PassQRCodeView(admission: admission)
@@ -222,7 +222,7 @@ struct VenueDetailScreen: View {
                                     .foregroundStyle(.green)
                             }
                         }
-                    } else if let cover = detail.coverCharge {
+                    } else if AppFeatures.inAppPasses, let cover = detail.coverCharge {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Entry / Day Pass")

@@ -165,8 +165,8 @@ struct EventDetailScreen: View {
             }
 
             // Ticketing & Passes Section
-            if event.hasTicketing || purchasedPass != nil {
-                Section("Tickets & Passes") {
+            if showsTicketing {
+                Section(AppFeatures.inAppPasses ? "Tickets & Passes" : "Tickets") {
                     if let pass = purchasedPass {
                         NavigationLink {
                             PassQRCodeView(admission: pass)
@@ -187,7 +187,7 @@ struct EventDetailScreen: View {
                         }
                     }
 
-                    if let cover = event.coverCharge {
+                    if AppFeatures.inAppPasses, let cover = event.coverCharge {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Admission / Door Pass")
@@ -390,6 +390,12 @@ struct EventDetailScreen: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Organizer ticket links always show; the cover row only while in-app passes are on (see ``AppFeatures``).
+    private var showsTicketing: Bool {
+        purchasedPass != nil || event.ticketURL != nil || !event.ticketOffers.isEmpty
+            || (AppFeatures.inAppPasses && event.coverCharge != nil)
     }
 
     private func purchaseVenuePass(venueID: String) async {

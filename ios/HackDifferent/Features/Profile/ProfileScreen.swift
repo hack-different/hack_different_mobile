@@ -78,17 +78,14 @@ struct ProfileScreen: View {
                     }
                 }
 
-                // AudienceKit Environment Details
-                Section("AudienceKit Connection") {
-                    LabeledContent("Audience", value: appModel.brand.audienceName)
-                    LabeledContent("API", value: appModel.configuration.baseURL.host ?? appModel.configuration.baseURL.absoluteString)
-                        .font(.caption.monospaced())
-                    LabeledContent("Tenant", value: appModel.configuration.host)
-                        .font(.caption.monospaced())
-                    LabeledContent("Audience ID", value: appModel.configuration.audienceID)
-                        .font(.caption2.monospaced())
-                    LabeledContent("SDK Version", value: AudienceKitSDK.version)
-                    LabeledContent("API Contract", value: AudienceKitSDK.apiVersion)
+                Section("About") {
+                    Link(destination: AppFeatures.termsURL) {
+                        Label("Terms of Use", systemImage: "doc.text")
+                    }
+                    Link(destination: AppFeatures.privacyURL) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+                    LabeledContent("Version", value: "\(appModel.configuration.marketingVersion) (\(appModel.configuration.buildNumber))")
                 }
 
                 Section {
