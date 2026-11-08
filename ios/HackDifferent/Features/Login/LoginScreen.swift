@@ -51,11 +51,13 @@ struct LoginScreen: View {
                         title: "Conferences & Meetups",
                         subtitle: "RSVP for local meetups, talks, workshops, and security conferences."
                     )
-                    FeatureRow(
-                        icon: "qrcode.viewfinder",
-                        title: "Tickets & Live QR Passes",
-                        subtitle: "Get event tickets and offline-ready rotating QR admission passes."
-                    )
+                    if AppFeatures.inAppPasses {
+                        FeatureRow(
+                            icon: "qrcode.viewfinder",
+                            title: "Tickets & Live QR Passes",
+                            subtitle: "Get event tickets and offline-ready rotating QR admission passes."
+                        )
+                    }
                     FeatureRow(
                         icon: "bubble.left.and.bubble.right.fill",
                         title: "Venue Chat & Discord",
@@ -110,9 +112,12 @@ struct LoginScreen: View {
                         .font(.footnote.weight(.medium))
                     }
 
-                    Text("Connected to \(appModel.configuration.baseURL.host ?? "") · \(appModel.configuration.host)")
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.tertiary)
+                    // App Store guideline 1.2: chat is user-generated content, so signing in means agreeing to the terms.
+                    // The links are literal so SwiftUI parses them as Markdown (same URLs as AppFeatures).
+                    Text("By signing in you agree to the [Terms of Use](https://audiencekit.com/terms/) and [Privacy Policy](https://audiencekit.com/privacy/). Hack Different has no tolerance for abusive or objectionable content.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)

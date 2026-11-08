@@ -189,7 +189,8 @@ struct RoomChatScreen: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: { _ in
-            Text(ReportCopy.blockDetail)
+            // The SDK's copy promises unblocking later, which this app has no screen for yet.
+            Text("You'll stop seeing each other's messages.")
         }
         .sheet(isPresented: $showingRoster) {
             NavigationStack {
