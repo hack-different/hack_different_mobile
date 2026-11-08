@@ -113,8 +113,10 @@ final class StoreScreenshots: XCTestCase {
         let row = rows.firstMatch
         guard row.waitForExistence(timeout: 10), scroll(to: row) else { return false }
         row.tap()
+        // A pushed screen has a back button; a loaded Mac can take well over the old fixed 2 s to push it.
+        let pushed = app.navigationBars.buttons.element(boundBy: 0).waitForExistence(timeout: 15)
         settle(2)
-        return true
+        return pushed
     }
 
     private func back() {
