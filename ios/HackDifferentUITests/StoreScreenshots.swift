@@ -112,9 +112,13 @@ final class StoreScreenshots: XCTestCase {
         if let name { rows = rows.matching(NSPredicate(format: "label CONTAINS[c] %@", name)) }
         let row = rows.firstMatch
         guard row.waitForExistence(timeout: 10), scroll(to: row) else { return false }
-        row.tap()
+        // A centre tap on a space row doesn't open it under XCUITest (a finger tap does);
+        // tapping left of centre opens every row type first time.
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+        // A pushed screen has a back button; a loaded Mac can take well over the old fixed 2 s to push it.
+        let pushed = app.navigationBars.buttons.element(boundBy: 0).waitForExistence(timeout: 15)
         settle(2)
-        return true
+        return pushed
     }
 
     private func back() {
