@@ -53,7 +53,7 @@ struct RoomChatScreen: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 10) {
-                            if viewModel.visibleMessages.isEmpty {
+                            if viewModel.visibleMessages.isEmpty && viewModel.canPost {
                                 ContentUnavailableView(
                                     "No Messages Yet",
                                     systemImage: "bubble.left.and.bubble.right",
@@ -104,29 +104,10 @@ struct RoomChatScreen: View {
                         .padding(.vertical, 4)
                 }
 
-                Divider()
-
-                // Composer
-                HStack(spacing: 10) {
-                    TextField("Message \(room.displayName)…", text: $draftMessage, axis: .vertical)
-                        .lineLimit(1...4)
-                        .textFieldStyle(.roundedBorder)
-
-                    Button {
-                        let text = draftMessage
-                        draftMessage = ""
-                        Task {
-                            await viewModel.sendMessage(text)
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                    }
-                    .disabled(draftMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSending)
+                if viewModel.canPost {
+                    Divider()
+                    composer(viewModel)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(Color(.systemBackground))
             } else {
                 Spacer()
                 ProgressView("Connecting to \(room.displayName)…")
@@ -243,6 +224,29 @@ struct RoomChatScreen: View {
         .onDisappear {
             viewModel?.disconnect()
         }
+    }
+
+    private func composer(_ viewModel: ChatRoomViewModel) -> some View {
+        HStack(spacing: 10) {
+            TextField("Message \(room.displayName)…", text: $draftMessage, axis: .vertical)
+                .lineLimit(1...4)
+                .textFieldStyle(.roundedBorder)
+
+            Button {
+                let text = draftMessage
+                draftMessage = ""
+                Task {
+                    await viewModel.sendMessage(text)
+                }
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.title2)
+            }
+            .disabled(draftMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSending)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground))
     }
 }
 
