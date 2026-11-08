@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.dp
 import com.hackdifferent.app.AuthState
 import com.hackdifferent.app.HackDifferentAppState
 
+internal const val TERMS_URL = "https://audiencekit.com/terms/"
+internal const val PRIVACY_URL = "https://audiencekit.com/privacy/"
+
 @Composable
 fun LoginScreen(appState: HackDifferentAppState) {
     val context = LocalContext.current
@@ -184,11 +187,18 @@ fun LoginScreen(appState: HackDifferentAppState) {
                     }
                 }
 
+                // Google Play UGC policy / App Store 1.2: members agree to the terms before they can post.
                 Text(
-                    text = "Connected to ${appState.config.host}",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    text = "By signing in you agree to the Terms of Use and Privacy Policy. " +
+                        "There's no tolerance for objectionable content or abusive members.",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { appState.openExternalUrl(context, TERMS_URL) }) { Text("Terms of Use") }
+                    TextButton(onClick = { appState.openExternalUrl(context, PRIVACY_URL) }) { Text("Privacy Policy") }
+                }
             }
         }
     }

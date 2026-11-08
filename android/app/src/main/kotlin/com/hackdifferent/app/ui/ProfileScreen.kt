@@ -116,6 +116,10 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                     ) {
                         Text("GitHub (github.com/hack-different)")
                     }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { appState.openExternalUrl(context, TERMS_URL) }) { Text("Terms of Use") }
+                        TextButton(onClick = { appState.openExternalUrl(context, PRIVACY_URL) }) { Text("Privacy Policy") }
+                    }
                 }
             }
 
@@ -127,8 +131,6 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    InfoRow("Audience Host", appState.config.host)
-                    InfoRow("Audience ID", appState.config.audienceId.take(8) + "…")
                     InfoRow("App Version", "${appState.config.versionName} (${appState.config.versionCode})")
                     InfoRow("AudienceKit SDK", AudienceKitSDK.VERSION)
                 }

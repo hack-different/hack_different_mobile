@@ -18,9 +18,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.audiencekit.ChatMessage
+import com.audiencekit.ReportCopy
 import com.hackdifferent.app.ChatConnectionStatus
 import com.hackdifferent.app.ChatRoomController
 import com.hackdifferent.app.HackDifferentAppState
@@ -212,6 +221,8 @@ private fun RoomChatView(
         )
     }
     var draft by remember { mutableStateOf("") }
+    var reporting by remember { mutableStateOf<ChatMessage?>(null) }
+    var blocking by remember { mutableStateOf<ChatMessage?>(null) }
 
     DisposableEffect(room.id) {
         controller.connect(watch = true)
@@ -330,10 +341,27 @@ private fun RoomChatView(
                                 IconButton(onClick = { controller.deleteOwnMessage(msg) }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete message")
                                 }
+                            } else {
+                                MessageActions(
+                                    canBlock = msg.userId != null,
+                                    onReport = { reporting = msg },
+                                    onBlock = { blocking = msg },
+                                )
                             }
                         }
                     }
                 }
+            }
+
+            controller.notice?.let { notice ->
+                Text(
+                    text = notice,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .clickable { controller.notice = null },
+                )
             }
 
             controller.sendError?.let { err ->
@@ -372,4 +400,98 @@ private fun RoomChatView(
             }
         }
     }
+
+    reporting?.let { message ->
+        ReportMessageDialog(
+            canBlock = message.userId != null,
+            onDismiss = { reporting = null },
+            onReport = { reason, block ->
+                reporting = null
+                controller.reportMessage(message, reason, block)
+            },
+        )
+    }
+
+    blocking?.let { message ->
+        AlertDialog(
+            onDismissRequest = { blocking = null },
+            title = { Text(ReportCopy.BLOCK_TITLE) },
+            text = { Text(ReportCopy.BLOCK_DETAIL) },
+            confirmButton = {
+                TextButton(onClick = {
+                    blocking = null
+                    controller.blockSender(message)
+                }) { Text(ReportCopy.BLOCK_PERSON) }
+            },
+            dismissButton = { TextButton(onClick = { blocking = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+/** Report and block for someone else's message (Google Play's user-generated content policy). */
+@Composable
+private fun MessageActions(canBlock: Boolean, onReport: () -> Unit, onBlock: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    androidx.compose.foundation.layout.Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Default.MoreVert, contentDescription = "Message options")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(ReportCopy.REPORT_MESSAGE) },
+                onClick = {
+                    expanded = false
+                    onReport()
+                },
+            )
+            if (canBlock) {
+                DropdownMenuItem(
+                    text = { Text(ReportCopy.BLOCK_PERSON) },
+                    onClick = {
+                        expanded = false
+                        onBlock()
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReportMessageDialog(canBlock: Boolean, onDismiss: () -> Unit, onReport: (String?, Boolean) -> Unit) {
+    var reason by remember { mutableStateOf<String?>(null) }
+    var alsoBlock by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(ReportCopy.REPORT_TITLE) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(ReportCopy.REPORT_DETAIL, style = MaterialTheme.typography.bodyMedium)
+                ReportCopy.REASONS.forEach { option ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { reason = option },
+                    ) {
+                        RadioButton(selected = reason == option, onClick = { reason = option })
+                        Text(option)
+                    }
+                }
+                if (canBlock) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { alsoBlock = !alsoBlock },
+                    ) {
+                        Checkbox(checked = alsoBlock, onCheckedChange = { alsoBlock = it })
+                        Text(ReportCopy.ALSO_BLOCK)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onReport(reason, alsoBlock) }) { Text("Report") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
