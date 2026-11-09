@@ -42,6 +42,16 @@
                     android:host="callback" />
             </intent-filter>
 
+            <!-- Connect Discord callback from AudienceKit API (Profile) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="audiencekit-discord"
+                    android:host="callback" />
+            </intent-filter>
+
             <!-- Deep link scheme matching iOS hackdifferent:// -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

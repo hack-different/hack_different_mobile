@@ -21,6 +21,8 @@ import com.audiencekit.AudienceKitEnvironment
 import com.audiencekit.AudienceKitException
 import com.audiencekit.AudienceLocale
 import com.audiencekit.Branding
+import com.audiencekit.ConnectedDiscord
+import com.audiencekit.DiscordConnection
 import com.audiencekit.CableConnection
 import com.audiencekit.CableSocket
 import com.audiencekit.CableSocketFactory
@@ -69,6 +71,7 @@ class HackDifferentAppState(
 ) {
     private val appContext = context.applicationContext
     private val applePrefs = appContext.getSharedPreferences("com.hackdifferent.app.apple_signin", Context.MODE_PRIVATE)
+    private val discordPrefs = appContext.getSharedPreferences("com.hackdifferent.app.discord_connect", Context.MODE_PRIVATE)
     private val okHttpClient = OkHttpClient()
 
     val config = AppConfig(
@@ -114,6 +117,11 @@ class HackDifferentAppState(
     var branding by mutableStateOf<Branding?>(null)
         private set
     var errorMessage by mutableStateOf<String?>(null)
+
+    /** The Discord account connected to theirs (Profile's Connect Discord); null when none or not loaded yet. */
+    var connectedDiscord by mutableStateOf<ConnectedDiscord?>(null)
+    var isConnectingDiscord by mutableStateOf(false)
+    var discordError by mutableStateOf<String?>(null)
         private set
     var sessionEndedBanner by mutableStateOf<String?>(null)
         private set
@@ -301,8 +309,49 @@ class HackDifferentAppState(
         customTabs.launchUrl(activityContext, Uri.parse(signIn.authorizationUrl()))
     }
 
+    /** Loads which Discord account is connected, for Profile. */
+    fun refreshConnectedDiscord() {
+        scope.launch { connectedDiscord = runCatching { client.connectedDiscord() }.getOrNull() }
+    }
+
+    /**
+     * Connect Discord, for people who signed in with Apple: Discord's sign-in opens in a Custom Tab, and the API hands
+     * the answer back on audiencekit-discord://callback (handleIncomingIntent). The Discord bridge then knows them as
+     * the same person and shows them the server's channels as themselves.
+     */
+    fun startDiscordConnect(activityContext: Context) {
+        discordError = null
+        val connection = DiscordConnection(config.baseUrl, appContext.packageName)
+        discordPrefs.edit().putString("verifier", connection.verifier).apply()
+        CustomTabsIntent.Builder().build().launchUrl(activityContext, Uri.parse(connection.authorizationUrl()))
+    }
+
+    private fun handleDiscordCallback(url: String) {
+        val verifier = discordPrefs.getString("verifier", null)
+        if (verifier == null) {
+            discordError = "Connecting Discord took too long. Please try again."
+            return
+        }
+        discordPrefs.edit().remove("verifier").apply()
+        val connection = DiscordConnection(config.baseUrl, appContext.packageName, verifier)
+        isConnectingDiscord = true
+        scope.launch {
+            try {
+                if (client.connectDiscord(connection.result(url), connection, DeviceDescription.current(appContext)) != null) {
+                    connectedDiscord = client.connectedDiscord() ?: ConnectedDiscord(null)
+                    currentUser = runCatching { client.me() }.getOrNull() ?: currentUser
+                }
+            } catch (e: Exception) {
+                discordError = e.localizedMessage ?: "Discord didn't connect. Try again."
+            } finally {
+                isConnectingDiscord = false
+            }
+        }
+    }
+
     fun handleIncomingIntent(intent: Intent?) {
         val url = intent?.data?.toString() ?: return
+        if (DiscordConnection.isCallbackUrl(url)) return handleDiscordCallback(url)
         if (!AppleWebSignIn.isCallbackUrl(url)) return
 
         val savedState = applePrefs.getString("state", null)
