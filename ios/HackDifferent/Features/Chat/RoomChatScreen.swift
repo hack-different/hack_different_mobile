@@ -107,6 +107,9 @@ struct RoomChatScreen: View {
                 if viewModel.canPost {
                     Divider()
                     composer(viewModel)
+                } else if viewModel.isReadOnly {
+                    Divider()
+                    replyOnDiscord(viewModel)
                 }
             } else {
                 Spacer()
@@ -224,6 +227,27 @@ struct RoomChatScreen: View {
         .onDisappear {
             viewModel?.disconnect()
         }
+    }
+
+    /// In a room that mirrors Discord: where to reply, since sending from here can't work.
+    private func replyOnDiscord(_ viewModel: ChatRoomViewModel) -> some View {
+        VStack(spacing: 6) {
+            if let url = viewModel.replyURL ?? room.discordLink?.webURL {
+                Button {
+                    openURL(url)
+                } label: {
+                    Label("Reply on Discord", systemImage: "arrowshape.turn.up.left.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            Text("This room mirrors \(room.displayName)'s Discord channel. Read and report here; replies happen on Discord.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     private func composer(_ viewModel: ChatRoomViewModel) -> some View {

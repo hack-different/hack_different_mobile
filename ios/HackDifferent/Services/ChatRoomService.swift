@@ -28,6 +28,11 @@ public final class ChatRoomViewModel {
     public private(set) var sendError: String?
     /// A short confirmation after a report or block, shown under the messages.
     public private(set) var notice: String?
+    /// Whether the room mirrors its Discord channel (a read-only bridge): its messages come in to read and report,
+    /// and replies go on Discord (`replyURL`).
+    public private(set) var isReadOnly = false
+    /// The room's channel on Discord, to reply there, when `isReadOnly`.
+    public private(set) var replyURL: URL?
     /// Members blocked from this screen: their messages are hidden at once, before the server stops sending them.
     public private(set) var blockedUserIDs: Set<String> = []
 
@@ -41,8 +46,9 @@ public final class ChatRoomViewModel {
     }
 
     /// Whether the composer belongs on screen: not in a room the server turned away (one hosted on Discord, or one
-    /// the member is out of range of), where a send can only fail.
+    /// the member is out of range of), or one that only mirrors Discord, where a send can only fail.
     public var canPost: Bool {
+        if isReadOnly { return false }
         if case .notPresent = status { return false }
         return true
     }
@@ -60,6 +66,8 @@ public final class ChatRoomViewModel {
     public func connect(watch: Bool = false) {
         subscriptionTask?.cancel()
         status = .connecting
+        isReadOnly = false
+        replyURL = nil
 
         subscriptionTask = Task { [weak self] in
             guard let self else { return }
@@ -177,6 +185,9 @@ public final class ChatRoomViewModel {
             }
         case let .rangeChanged(outOfRange):
             status = outOfRange ? .outOfRange : .connected
+        case let .readOnly(url):
+            isReadOnly = true
+            replyURL = url
         case .left:
             status = .notPresent("You left the \(room.displayName) chat range.")
         case .unknown:
