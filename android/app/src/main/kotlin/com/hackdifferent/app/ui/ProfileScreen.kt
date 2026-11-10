@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.audiencekit.AudienceKitSDK
+import com.audiencekit.ConnectDiscordCopy
 import com.audiencekit.DeleteAccountCopy
 import com.hackdifferent.app.HackDifferentAppState
 import kotlinx.coroutines.launch
@@ -43,6 +45,7 @@ fun ProfileScreen(appState: HackDifferentAppState) {
     var deleteError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    LaunchedEffect(Unit) { appState.refreshConnectedDiscord() }
     val user = appState.currentUser
 
     Scaffold(
@@ -83,6 +86,36 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
+                }
+            }
+
+            // Connect Discord, for people who signed in with Apple: the Discord bridge then knows them as the same
+            // person. Once connected it shows the Discord username.
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val discord = appState.connectedDiscord
+                    if (discord != null) {
+                        InfoRow(ConnectDiscordCopy.CONNECTED_LABEL, discord.username?.let { "@$it" } ?: ConnectDiscordCopy.CONNECTED)
+                    } else {
+                        OutlinedButton(
+                            onClick = { appState.startDiscordConnect(context) },
+                            enabled = !appState.isConnectingDiscord,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (appState.isConnectingDiscord) "Connecting…" else ConnectDiscordCopy.CONNECT)
+                        }
+                    }
+                    Text(
+                        text = ConnectDiscordCopy.EXPLANATION,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
@@ -179,6 +212,15 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                 ) { Text("Delete Account") }
             },
             dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
+        )
+    }
+
+    appState.discordError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { appState.discordError = null },
+            title = { Text(ConnectDiscordCopy.FAILED_TITLE) },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { appState.discordError = null }) { Text("OK") } },
         )
     }
 

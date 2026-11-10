@@ -78,6 +78,18 @@ struct ProfileScreen: View {
                     }
                 }
 
+                // Connect Discord, for people who signed in with Apple: the Discord bridge then knows them as the
+                // same person and shows them the server's channels as themselves. Once connected it shows the
+                // Discord username.
+                Section {
+                    ConnectDiscordButton(client: appModel.client,
+                                         device: appModel.configuration.currentDeviceDescription()) { _ in
+                        await appModel.session.refreshProfile()
+                    }
+                } footer: {
+                    Text(ConnectDiscordCopy.explanation)
+                }
+
                 Section("About") {
                     Link(destination: AppFeatures.termsURL) {
                         Label("Terms of Use", systemImage: "doc.text")
