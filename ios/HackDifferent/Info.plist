@@ -71,6 +71,8 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
