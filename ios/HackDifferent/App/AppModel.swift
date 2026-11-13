@@ -17,6 +17,7 @@ public final class AppModel {
         case events
         case spaces
         case chat
+        case gitHub
         case passes
         case profile
     }
@@ -35,6 +36,8 @@ public final class AppModel {
     public private(set) var events: [ConferenceEvent] = []
     public private(set) var locales: [AudienceLocale] = []
     public private(set) var admissions: [Admission] = []
+    /// The community's GitHub organization, repositories and projects; nil until the audience has a GitHub App.
+    public private(set) var gitHub: GitHubCommunity?
     public private(set) var isLoadingCatalog = false
     public private(set) var catalogError: String?
 
@@ -91,8 +94,10 @@ public final class AppModel {
             catch { return .failure(error) }
         }()
         async let admissionsResult: [Admission]? = try? api.admissions()
+        async let gitHubResult: GitHubCommunity? = try? client.gitHubCommunity()
 
         let (vRes, eRes, lRes, aRes) = await (venuesResult, eventsResult, localesResult, admissionsResult)
+        gitHub = await gitHubResult
 
         var errors: [String] = []
 

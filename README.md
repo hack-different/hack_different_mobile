@@ -23,6 +23,7 @@ Official iOS and Android apps for the **Hack Different** community built on the 
 - **Conferences & Meetups (`Events`)**: Browse upcoming conferences and local hacker meetups, filter by event kind, view speakers/organizers, and **RSVP** (`Going`, `Interested`, `Not Going`).
 - **Hackerspaces & Conference Venues (`Spaces`)**: Browse community hackerspaces and conference venues, view addresses, upcoming schedules, and social links.
 - **Ticketing & Live QR Passes (`Passes`)**: Support for external partner ticket offers (`tickets.offers`) and native AudienceKit admissions/passes (`buyCover`, `confirmCover`, `admissions`, `refundAdmission`) with offline-ready 30-second rotating HMAC-SHA256 QR codes (`CoverPass`).
+- **GitHub Projects (`Projects`)**: The community's GitHub organization, its public repositories, and its public GitHub Projects as boards grouped by Status, plus what's assigned to you once you connect GitHub. All from the SDK (`gitHubCommunity`, `gitHubProject`, `myGitHubItems`); the tab only appears once the audience has a GitHub App (audience_kit_api `doc/GITHUB.md`).
 - **Venue / Con Chat & Discord (`Chat`)**: Real-time chat rooms for every hackerspace, conference venue, and region over Action Cable (`AudienceCable` / `CableConnection`), paired with first-class Discord server & invite integration.
 
 ## Building & Testing

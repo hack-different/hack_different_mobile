@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.ViewKanban
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.hackdifferent.app.ui.ChatScreen
 import com.hackdifferent.app.ui.EventsScreen
+import com.hackdifferent.app.ui.GitHubScreen
 import com.hackdifferent.app.ui.HackDifferentTheme
 import com.hackdifferent.app.ui.LoginScreen
 import com.hackdifferent.app.ui.PassesScreen
@@ -78,7 +80,7 @@ private fun HackDifferentRoot(appState: HackDifferentAppState) {
             Scaffold(
                 bottomBar = {
                     NavigationBar {
-                        AppTab.entries.forEach { tab ->
+                        AppTab.entries.filter { it != AppTab.GITHUB || appState.gitHub != null }.forEach { tab ->
                             NavigationBarItem(
                                 selected = appState.selectedTab == tab,
                                 onClick = { appState.selectedTab = tab },
@@ -89,6 +91,7 @@ private fun HackDifferentRoot(appState: HackDifferentAppState) {
                                             AppTab.SPACES -> Icons.Default.Memory
                                             AppTab.PASSES -> Icons.Default.QrCode2
                                             AppTab.CHAT -> Icons.Default.Forum
+                                            AppTab.GITHUB -> Icons.Default.ViewKanban
                                             AppTab.PROFILE -> Icons.Default.Person
                                         },
                                         contentDescription = tab.label,
@@ -106,6 +109,7 @@ private fun HackDifferentRoot(appState: HackDifferentAppState) {
                         AppTab.SPACES -> SpacesScreen(appState = appState)
                         AppTab.PASSES -> PassesScreen(appState = appState)
                         AppTab.CHAT -> ChatScreen(appState = appState)
+                        AppTab.GITHUB -> GitHubScreen(appState = appState)
                         AppTab.PROFILE -> ProfileScreen(appState = appState)
                     }
                 }
