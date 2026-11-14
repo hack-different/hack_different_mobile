@@ -27,6 +27,31 @@ struct RootView: View {
             }
         }
         .tint(appModel.brand.accentColor(for: colorScheme))
+        .environment(\.onAccent, appModel.brand.onAccentColor(for: colorScheme))
+    }
+}
+
+extension EnvironmentValues {
+    /// The readable color for text on the brand accent (the app's `.tint`). Set by ``RootView``.
+    @Entry var onAccent: Color = .white
+}
+
+/// `.borderedProminent` on the brand accent, with text that reads on it. SwiftUI's prominent style always draws a
+/// white label, which disappears on Hack Different's lime.
+private struct AccentProminentButtonStyle: ViewModifier {
+    @Environment(\.onAccent) private var onAccent
+
+    func body(content: Content) -> some View {
+        content
+            .buttonStyle(.borderedProminent)
+            .foregroundStyle(onAccent)
+    }
+}
+
+extension View {
+    /// A prominent button filled with the brand accent and labelled in ``EnvironmentValues/onAccent``.
+    func accentProminentButtonStyle() -> some View {
+        modifier(AccentProminentButtonStyle())
     }
 }
 

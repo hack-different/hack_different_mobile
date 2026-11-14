@@ -243,7 +243,7 @@ struct VenueDetailScreen: View {
                                             .font(.subheadline.weight(.semibold))
                                     }
                                 }
-                                .buttonStyle(.borderedProminent)
+                                .accentProminentButtonStyle()
                                 .disabled(isPurchasingCover)
                             } else {
                                 Text("At Door")

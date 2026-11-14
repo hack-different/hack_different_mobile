@@ -153,7 +153,7 @@ struct EventsScreen: View {
                             Button("Enable") {
                                 appModel.location.requestOptIn()
                             }
-                            .buttonStyle(.borderedProminent)
+                            .accentProminentButtonStyle()
                             .controlSize(.small)
                         }
                         .padding(.vertical, 4)
@@ -204,7 +204,7 @@ struct EventsScreen: View {
                                     Button("Enable Location") {
                                         appModel.location.requestOptIn()
                                     }
-                                    .buttonStyle(.borderedProminent)
+                                    .accentProminentButtonStyle()
                                 }
                                 Button("Show All Events") {
                                     selectedRegion = .all
@@ -232,7 +232,7 @@ struct EventsScreen: View {
                                 Button("Show All Events") {
                                     selectedRegion = .all
                                 }
-                                .buttonStyle(.borderedProminent)
+                                .accentProminentButtonStyle()
                             }
                         }
                         .padding(.vertical, 24)
