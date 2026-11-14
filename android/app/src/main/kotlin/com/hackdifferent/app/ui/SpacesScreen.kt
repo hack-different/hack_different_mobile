@@ -30,6 +30,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -47,7 +53,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.audiencekit.Venue
+import com.hackdifferent.app.AppFeatures
 import com.hackdifferent.app.HackDifferentAppState
+import com.hackdifferent.core.ConferenceEvent
 import com.hackdifferent.core.ChatRoomTarget
 import com.hackdifferent.core.SpaceCategory
 import com.hackdifferent.core.SpaceDetail
@@ -59,8 +67,23 @@ fun SpacesScreen(appState: HackDifferentAppState) {
     var selectedCategory by remember { mutableStateOf(SpaceCategory.ALL) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedVenue by remember { mutableStateOf<Venue?>(null) }
+    var nearMeOnly by remember { mutableStateOf(false) }
 
-    val filteredVenues = remember(appState.venues, selectedCategory, searchQuery) {
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        appState.refreshLocationIfPermitted()
+    }
+
+    val filteredVenues = remember(
+        appState.venues,
+        selectedCategory,
+        searchQuery,
+        nearMeOnly,
+        appState.hasLocationOptIn,
+        appState.closestLocale,
+        appState.userCoordinate,
+    ) {
         appState.venues.filter { venue ->
             val category = SpaceCategory.classify(venue.tags, venue.name)
             val matchesCategory = selectedCategory == SpaceCategory.ALL || category == selectedCategory
@@ -68,7 +91,8 @@ fun SpacesScreen(appState: HackDifferentAppState) {
                 venue.name.contains(searchQuery, ignoreCase = true) ||
                 venue.locale.name?.contains(searchQuery, ignoreCase = true) == true ||
                 venue.location?.address?.contains(searchQuery, ignoreCase = true) == true
-            matchesSearch && matchesCategory
+            val matchesLocation = !nearMeOnly || appState.isVenueNearby(venue)
+            matchesSearch && matchesCategory && matchesLocation
         }
     }
 
@@ -111,12 +135,36 @@ fun SpacesScreen(appState: HackDifferentAppState) {
                         label = { Text(category.label) },
                     )
                 }
+                FilterChip(
+                    selected = nearMeOnly,
+                    onClick = {
+                        if (!appState.hasLocationOptIn) {
+                            nearMeOnly = true
+                            permissionLauncher.launch(
+                                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
+                            )
+                        } else {
+                            nearMeOnly = !nearMeOnly
+                        }
+                    },
+                    label = {
+                        val region = appState.closestLocale?.name ?: appState.closestLocale?.label
+                        Text(if (appState.hasLocationOptIn && region != null) "Near Me • $region" else "Near Me")
+                    },
+                )
             }
+
+            PullToRefreshBox(
+                isRefreshing = appState.isLoadingDirectory,
+                onRefresh = { appState.refreshAll() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
 
             if (filteredVenues.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -138,6 +186,7 @@ fun SpacesScreen(appState: HackDifferentAppState) {
                         )
                     }
                 }
+            }
             }
         }
     }
@@ -220,15 +269,27 @@ private fun VenueDetailSheet(
 ) {
     val context = LocalContext.current
     var detail by remember { mutableStateOf<SpaceDetail?>(null) }
+    var selectedEvent by remember { mutableStateOf<ConferenceEvent?>(null) }
 
     LaunchedEffect(venue.id) {
         detail = appState.loadVenueDetail(venue.id)
+    }
+
+    selectedEvent?.let { event ->
+        EventDetailSheet(
+            event = event,
+            appState = appState,
+            onDismiss = { selectedEvent = null },
+            onEventUpdated = { updated -> selectedEvent = updated },
+        )
+        return
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -255,7 +316,9 @@ private fun VenueDetailSheet(
                 Text(text = desc, style = MaterialTheme.typography.bodyMedium)
             }
 
-            detail?.coverCharge?.let { cover ->
+            TagChips(venue.tags)
+
+            detail?.coverCharge?.takeIf { AppFeatures.IN_APP_PASSES }?.let { cover ->
                 Text(
                     text = "Admission / Pass: ${cover.total.formattedAmount}",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -282,6 +345,8 @@ private fun VenueDetailSheet(
                 Text("Join ${venue.name} Live Chat")
             }
 
+            RecentMessages(detail?.recentMessages.orEmpty())
+
             VenueCalendarButton(client = appState.client, venueId = venue.id, venueName = venue.name)
 
             detail?.discordLink?.let { discord ->
@@ -294,6 +359,13 @@ private fun VenueDetailSheet(
                     Text("Open Discord (${discord.subtitle})")
                 }
             }
+
+            detail?.ticketOffers?.takeIf { it.isNotEmpty() }?.let { offers ->
+                DetailHeading("Tickets")
+                TicketOffers(offers) { appState.openExternalUrl(context, it) }
+            }
+
+            UpcomingEvents(detail?.upcomingEvents.orEmpty()) { selectedEvent = it }
 
             Spacer(modifier = Modifier.height(16.dp))
         }

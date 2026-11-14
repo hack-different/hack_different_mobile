@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hackdifferent.app.AuthState
+import com.hackdifferent.app.AppFeatures
 import com.hackdifferent.app.HackDifferentAppState
 
 internal const val TERMS_URL = "https://audiencekit.com/terms/"
@@ -120,11 +121,13 @@ fun LoginScreen(appState: HackDifferentAppState) {
                         title = "Conferences & Meetups",
                         subtitle = "RSVP for local meetups, talks, workshops, and security conferences.",
                     )
-                    FeatureRow(
-                        icon = Icons.Default.QrCodeScanner,
-                        title = "Tickets & Live QR Passes",
-                        subtitle = "Get event tickets and offline-ready rotating QR admission passes.",
-                    )
+                    if (AppFeatures.IN_APP_PASSES) {
+                        FeatureRow(
+                            icon = Icons.Default.QrCodeScanner,
+                            title = "Tickets & Live QR Passes",
+                            subtitle = "Get event tickets and offline-ready rotating QR admission passes.",
+                        )
+                    }
                     FeatureRow(
                         icon = Icons.Default.Forum,
                         title = "Venue Chat & Discord",

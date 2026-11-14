@@ -35,6 +35,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -153,10 +157,16 @@ fun EventsScreen(appState: HackDifferentAppState) {
                 )
             }
 
+            PullToRefreshBox(
+                isRefreshing = appState.isLoadingDirectory,
+                onRefresh = { appState.refreshAll() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             if (filteredEvents.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                         .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -184,6 +194,7 @@ fun EventsScreen(appState: HackDifferentAppState) {
                         )
                     }
                 }
+            }
             }
         }
     }
@@ -218,10 +229,20 @@ private fun EventCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                AssistChip(
-                    onClick = onClick,
-                    label = { Text(event.kind.badgeLabel) },
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(
+                        onClick = onClick,
+                        label = { Text(event.kind.badgeLabel) },
+                    )
+                    if (event.isFeatured) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = "Featured",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 event.lowestTicketPrice?.let { price ->
                     Text(
                         text = price.formattedAmount,
@@ -283,7 +304,7 @@ private fun EventCard(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun EventDetailSheet(
+internal fun EventDetailSheet(
     event: ConferenceEvent,
     appState: HackDifferentAppState,
     onDismiss: () -> Unit,
@@ -295,6 +316,7 @@ private fun EventDetailSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -313,12 +335,22 @@ private fun EventDetailSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            event.startAt?.let { start ->
+                Text(
+                    text = formatEventStart(start),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             event.description?.takeIf { it.isNotBlank() }?.let { desc ->
                 Text(
                     text = desc,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+
+            TagChips(event.tags)
 
             // RSVP Selector
             Text(
@@ -343,6 +375,13 @@ private fun EventDetailSheet(
                         label = { Text(label) },
                     )
                 }
+            }
+
+            EventPeopleSection(hosts = event.hosts, lineup = event.lineup)
+
+            if (event.ticketOffers.isNotEmpty()) {
+                DetailHeading("Tickets")
+                TicketOffers(event.ticketOffers) { appState.openExternalUrl(context, it) }
             }
 
             // Ticket link or Venue Chat / Discord

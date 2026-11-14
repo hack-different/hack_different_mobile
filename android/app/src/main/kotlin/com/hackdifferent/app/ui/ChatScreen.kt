@@ -17,11 +17,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -48,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.audiencekit.ChatMessage
 import com.audiencekit.ReportCopy
@@ -79,10 +86,15 @@ fun ChatScreen(appState: HackDifferentAppState) {
             TopAppBar(title = { Text("Chat") })
         },
     ) { innerPadding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = appState.isLoadingDirectory,
+            onRefresh = { appState.refreshAll() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
+        ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -162,6 +174,7 @@ fun ChatScreen(appState: HackDifferentAppState) {
                 }
             }
         }
+        }
     }
 }
 
@@ -223,6 +236,7 @@ private fun RoomChatView(
     var draft by remember { mutableStateOf("") }
     var reporting by remember { mutableStateOf<ChatMessage?>(null) }
     var blocking by remember { mutableStateOf<ChatMessage?>(null) }
+    var showingRoster by remember { mutableStateOf(false) }
 
     DisposableEffect(room.id) {
         controller.connect(watch = true)
@@ -254,6 +268,9 @@ private fun RoomChatView(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showingRoster = true }) {
+                        Icon(Icons.Default.Group, contentDescription = "In room now")
+                    }
                     room.discordLink?.let { discord ->
                         IconButton(onClick = { appState.openExternalUrl(context, discord.webUrl) }) {
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Discord")
@@ -373,6 +390,14 @@ private fun RoomChatView(
                 )
             }
 
+            if (controller.isReadOnly) {
+                HorizontalDivider()
+                ReplyOnDiscord(
+                    roomName = room.displayName,
+                    replyUrl = controller.replyUrl ?: room.discordLink?.webUrl,
+                    onOpen = { appState.openExternalUrl(context, it) },
+                )
+            } else if (controller.canPost) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -398,7 +423,12 @@ private fun RoomChatView(
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                 }
             }
+            }
         }
+    }
+
+    if (showingRoster) {
+        RoomRoster(controller = controller, onDismiss = { showingRoster = false })
     }
 
     reporting?.let { message ->
@@ -416,7 +446,8 @@ private fun RoomChatView(
         AlertDialog(
             onDismissRequest = { blocking = null },
             title = { Text(ReportCopy.BLOCK_TITLE) },
-            text = { Text(ReportCopy.BLOCK_DETAIL) },
+            // The SDK's copy promises unblocking later, which this app has no screen for yet (same as iOS).
+            text = { Text("You'll stop seeing each other's messages.") },
             confirmButton = {
                 TextButton(onClick = {
                     blocking = null
@@ -494,4 +525,65 @@ private fun ReportMessageDialog(canBlock: Boolean, onDismiss: () -> Unit, onRepo
         confirmButton = { TextButton(onClick = { onReport(reason, alsoBlock) }) { Text("Report") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** In a room that mirrors Discord: where to reply, since sending from here can't work. */
+@Composable
+private fun ReplyOnDiscord(roomName: String, replyUrl: String?, onOpen: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        replyUrl?.let { url ->
+            Button(onClick = { onOpen(url) }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null)
+                Spacer(modifier = Modifier.padding(4.dp))
+                Text("Reply on Discord")
+            }
+        }
+        Text(
+            text = "This room mirrors $roomName's Discord channel. Read and report here; replies happen on Discord.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** Who's in the room now (iOS's Room Roster sheet). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RoomRoster(controller: ChatRoomController, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "In Room Now (${controller.participants.size})",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            )
+            if (controller.participants.isEmpty()) {
+                Text(
+                    text = "No one else is currently visible in this room.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            controller.participants.forEach { person ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(person.name ?: "Someone", style = MaterialTheme.typography.bodyLarge)
+                    if (person.friend) {
+                        Text("Friend", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
 }
