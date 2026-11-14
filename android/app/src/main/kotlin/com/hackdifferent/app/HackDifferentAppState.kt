@@ -337,6 +337,10 @@ class HackDifferentAppState(
     }
 
     /** Loads which Discord account is connected, for Profile. */
+    fun dismissDiscordError() {
+        discordError = null
+    }
+
     fun refreshConnectedDiscord() {
         scope.launch { connectedDiscord = runCatching { client.connectedDiscord() }.getOrNull() }
     }

@@ -287,10 +287,10 @@ fun ProfileScreen(appState: HackDifferentAppState) {
 
     appState.discordError?.let { message ->
         AlertDialog(
-            onDismissRequest = { appState.discordError = null },
+            onDismissRequest = { appState.dismissDiscordError() },
             title = { Text(ConnectDiscordCopy.FAILED_TITLE) },
             text = { Text(message) },
-            confirmButton = { TextButton(onClick = { appState.discordError = null }) { Text("OK") } },
+            confirmButton = { TextButton(onClick = { appState.dismissDiscordError() }) { Text("OK") } },
         )
     }
 
