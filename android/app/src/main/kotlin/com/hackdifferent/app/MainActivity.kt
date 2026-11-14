@@ -80,7 +80,7 @@ private fun HackDifferentRoot(appState: HackDifferentAppState) {
             Scaffold(
                 bottomBar = {
                     NavigationBar {
-                        AppTab.entries.filter { it != AppTab.GITHUB || appState.gitHub != null }.forEach { tab ->
+                        AppTab.entries.filter { (it != AppTab.GITHUB || appState.gitHub != null) && (it != AppTab.PASSES || AppFeatures.IN_APP_PASSES) }.forEach { tab ->
                             NavigationBarItem(
                                 selected = appState.selectedTab == tab,
                                 onClick = { appState.selectedTab = tab },

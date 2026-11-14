@@ -19,6 +19,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -56,8 +59,13 @@ fun GitHubScreen(appState: HackDifferentAppState) {
     val context = LocalContext.current
     val community = appState.gitHub
     Scaffold(topBar = { TopAppBar(title = { Text(GitHubCopy.TITLE) }) }) { innerPadding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = appState.isRefreshingGitHub,
+            onRefresh = { appState.refreshGitHub() },
             modifier = Modifier.fillMaxSize().padding(innerPadding),
+        ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -124,6 +132,7 @@ fun GitHubScreen(appState: HackDifferentAppState) {
                 }
             }
         }
+        }
     }
 }
 
@@ -134,6 +143,8 @@ private fun GitHubProjectScreen(appState: HackDifferentAppState, number: Int, ti
     val context = LocalContext.current
     var project by remember(number) { mutableStateOf<GitHubProject?>(null) }
     var loading by remember(number) { mutableStateOf(true) }
+    var refreshing by remember(number) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(number) {
         project = appState.loadGitHubProject(number)
         loading = false
@@ -150,8 +161,19 @@ private fun GitHubProjectScreen(appState: HackDifferentAppState, number: Int, ti
         },
     ) { innerPadding ->
         val board = project
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = refreshing,
+            onRefresh = {
+                scope.launch {
+                    refreshing = true
+                    appState.loadGitHubProject(number)?.let { project = it }
+                    refreshing = false
+                }
+            },
             modifier = Modifier.fillMaxSize().padding(innerPadding),
+        ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -175,6 +197,7 @@ private fun GitHubProjectScreen(appState: HackDifferentAppState, number: Int, ti
                 loading -> item { CircularProgressIndicator() }
                 else -> item { Hint("This project isn't available.") }
             }
+        }
         }
     }
 }

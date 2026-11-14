@@ -303,6 +303,18 @@ class HackDifferentAppState(
         return results[0] <= 80_000f
     }
 
+    /** Whether a space is in the closest locale or within 80 km (the Spaces tab's Near Me, like iOS's Near You). */
+    fun isVenueNearby(venue: Venue): Boolean {
+        if (!hasLocationOptIn) return false
+        val targetLocaleId = closestLocale?.id
+        if (targetLocaleId != null && venue.locale.id == targetLocaleId) return true
+        val coord = userCoordinate ?: return false
+        val venueCoord = venue.location?.coordinate ?: return false
+        val results = FloatArray(1)
+        Location.distanceBetween(coord.latitude, coord.longitude, venueCoord.latitude, venueCoord.longitude, results)
+        return results[0] <= 80_000f
+    }
+
     private fun hasGrantedLocationPermission(ctx: Context): Boolean =
         ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -471,10 +483,19 @@ class HackDifferentAppState(
         }
 
     /** Reloads the GitHub tab: the community and what's assigned to the signed-in person. */
+    /** True while the Projects tab reloads (its pull-to-refresh). */
+    var isRefreshingGitHub by mutableStateOf(false)
+        private set
+
     fun refreshGitHub() {
         scope.launch {
-            runCatching { client.gitHubCommunity() }.onSuccess { if (it != null) gitHub = it }
-            runCatching { client.myGitHubItems() }.onSuccess { myGitHubItems = it }
+            isRefreshingGitHub = true
+            try {
+                runCatching { client.gitHubCommunity() }.onSuccess { if (it != null) gitHub = it }
+                runCatching { client.myGitHubItems() }.onSuccess { myGitHubItems = it }
+            } finally {
+                isRefreshingGitHub = false
+            }
         }
     }
 

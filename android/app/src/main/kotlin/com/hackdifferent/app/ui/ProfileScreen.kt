@@ -9,7 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.audiencekit.RSVPState
+import com.hackdifferent.core.ConferenceEvent
+import com.hackdifferent.core.formatEventStart
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,16 +54,28 @@ fun ProfileScreen(appState: HackDifferentAppState) {
     val context = LocalContext.current
     LaunchedEffect(Unit) { appState.refreshConnectedDiscord() }
     val user = appState.currentUser
+    var selectedEvent by remember { mutableStateOf<ConferenceEvent?>(null) }
+    val attendingEvents = appState.events.filter { it.rsvpState == RSVPState.ATTENDING || it.rsvpState == RSVPState.MAYBE }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Profile & Community") })
         },
     ) { innerPadding ->
+        PullToRefreshBox(
+            isRefreshing = appState.isLoadingDirectory,
+            onRefresh = {
+                appState.refreshAll()
+                appState.refreshConnectedDiscord()
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -85,6 +104,47 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                         )
+                    }
+                }
+            }
+
+            // My RSVPs: the upcoming events they're going to or interested in (iOS's Profile section).
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "My RSVPs (${attendingEvents.size})",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    )
+                    if (attendingEvents.isEmpty()) {
+                        Text(
+                            text = "You haven't RSVPed to any upcoming conferences or meetups yet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    attendingEvents.forEach { event ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedEvent = event }
+                                .padding(vertical = 4.dp),
+                        ) {
+                            Text(event.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                            Text(
+                                text = listOfNotNull(
+                                    if (event.rsvpState == RSVPState.ATTENDING) "Going" else "Interested",
+                                    event.startAt?.let { formatEventStart(it) },
+                                ).joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -169,7 +229,7 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedButton(
                 onClick = { appState.signOut() },
@@ -191,6 +251,16 @@ fun ProfileScreen(appState: HackDifferentAppState) {
                 Text(if (deleting) "Deleting…" else "Delete Account")
             }
         }
+        }
+    }
+
+    selectedEvent?.let { event ->
+        EventDetailSheet(
+            event = event,
+            appState = appState,
+            onDismiss = { selectedEvent = null },
+            onEventUpdated = { updated -> selectedEvent = updated },
+        )
     }
 
     if (confirmingDelete) {

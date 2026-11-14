@@ -53,6 +53,24 @@ class ChatRoomController(
     var sendError by mutableStateOf<String?>(null)
         private set
 
+    /**
+     * Whether the room mirrors its Discord channel (a read-only bridge): its messages come in to read and report, and
+     * replies go on Discord ([replyUrl]).
+     */
+    var isReadOnly by mutableStateOf(false)
+        private set
+
+    /** The room's channel on Discord, to reply there, when [isReadOnly]. */
+    var replyUrl by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Whether the composer belongs on screen: not in a room the server turned away (out of range, say) or one that only
+     * mirrors Discord, where a send can only fail.
+     */
+    val canPost: Boolean
+        get() = !isReadOnly && status !is ChatConnectionStatus.NotPresent
+
     /** A short confirmation after a report or block ("Thanks. The admins will look at it."). */
     var notice by mutableStateOf<String?>(null)
 
@@ -64,6 +82,8 @@ class ChatRoomController(
     fun connect(watch: Boolean = false) {
         subscriptionJob?.cancel()
         status = ChatConnectionStatus.Connecting
+        isReadOnly = false
+        replyUrl = null
 
         subscriptionJob = scope.launch {
             val audienceId = runCatching { client.audienceId() }.getOrDefault(AppConfig.DEFAULT_AUDIENCE_ID)
@@ -166,6 +186,8 @@ class ChatRoomController(
                 participants = event.people
                 messages = event.history.filterNot { it.userId in blockedUserIds }
                 pinnedMessage = event.pinned
+                isReadOnly = event.readOnly
+                replyUrl = event.replyUrl
             }
             is ChatRoomEvent.Posted -> appendOrUpdateMessage(event.message)
             is ChatRoomEvent.Updated -> appendOrUpdateMessage(event.message)
