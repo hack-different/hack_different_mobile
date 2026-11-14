@@ -67,6 +67,12 @@ private struct MainTabView: View {
                 ChatHubScreen()
             }
 
+            if appModel.gitHub != nil {
+                Tab(GitHubCopy.projects, systemImage: "square.stack.3d.up.fill", value: AppModel.Tab.gitHub) {
+                    GitHubScreen()
+                }
+            }
+
             if AppFeatures.inAppPasses {
                 Tab("Passes", systemImage: "qrcode.viewfinder", value: AppModel.Tab.passes) {
                     PassesScreen()

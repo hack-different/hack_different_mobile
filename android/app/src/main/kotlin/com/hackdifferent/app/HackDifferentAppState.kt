@@ -23,6 +23,12 @@ import com.audiencekit.AudienceLocale
 import com.audiencekit.Branding
 import com.audiencekit.ConnectedDiscord
 import com.audiencekit.DiscordConnection
+import com.audiencekit.GitHubCommunity
+import com.audiencekit.GitHubProject
+import com.audiencekit.GitHubProjectItem
+import com.audiencekit.gitHubCommunity
+import com.audiencekit.gitHubProject
+import com.audiencekit.myGitHubItems
 import com.audiencekit.CableConnection
 import com.audiencekit.CableSocket
 import com.audiencekit.CableSocketFactory
@@ -62,6 +68,7 @@ enum class AppTab(val label: String) {
     SPACES("Spaces"),
     PASSES("Passes"),
     CHAT("Chat"),
+    GITHUB("Projects"),
     PROFILE("Profile"),
 }
 
@@ -138,6 +145,10 @@ class HackDifferentAppState(
     var events by mutableStateOf<List<ConferenceEvent>>(emptyList())
         private set
     var admissions by mutableStateOf<List<Admission>>(emptyList())
+
+    /** The community's GitHub organization, repositories and projects; null until the audience has a GitHub App. */
+    var gitHub by mutableStateOf<GitHubCommunity?>(null)
+    var myGitHubItems by mutableStateOf<List<GitHubProjectItem>>(emptyList())
         private set
     var isLoadingDirectory by mutableStateOf(false)
         private set
@@ -230,11 +241,15 @@ class HackDifferentAppState(
             val meJob = launch {
                 runCatching { client.me() }.onSuccess { if (it != null) currentUser = it }
             }
+            val gitHubJob = launch {
+                runCatching { client.gitHubCommunity() }.onSuccess { gitHub = it }
+            }
             venuesJob.join()
             localesJob.join()
             eventsJob.join()
             admissionsJob.join()
             meJob.join()
+            gitHubJob.join()
             if (locales.isEmpty()) {
                 val derived = LinkedHashMap<String, AudienceLocale>()
                 venues.forEach { derived.putIfAbsent(it.locale.id, it.locale) }
@@ -454,6 +469,16 @@ class HackDifferentAppState(
         } catch (e: Exception) {
             e.localizedMessage ?: DeleteAccountCopy.NOT_DELETED
         }
+
+    /** Reloads the GitHub tab: the community and what's assigned to the signed-in person. */
+    fun refreshGitHub() {
+        scope.launch {
+            runCatching { client.gitHubCommunity() }.onSuccess { if (it != null) gitHub = it }
+            runCatching { client.myGitHubItems() }.onSuccess { myGitHubItems = it }
+        }
+    }
+
+    suspend fun loadGitHubProject(number: Int): GitHubProject? = runCatching { client.gitHubProject(number) }.getOrNull()
 
     fun openExternalUrl(context: Context, url: String) {
         runCatching {
