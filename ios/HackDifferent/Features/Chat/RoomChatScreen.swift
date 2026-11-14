@@ -239,7 +239,7 @@ struct RoomChatScreen: View {
                     Label("Reply on Discord", systemImage: "arrowshape.turn.up.left.fill")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .accentProminentButtonStyle()
             }
             Text("This room mirrors \(room.displayName)'s Discord channel. Read and report here; replies happen on Discord.")
                 .font(.caption)

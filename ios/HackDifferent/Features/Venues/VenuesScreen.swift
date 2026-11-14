@@ -133,7 +133,7 @@ struct VenuesScreen: View {
                             Button("Enable") {
                                 appModel.location.requestOptIn()
                             }
-                            .buttonStyle(.borderedProminent)
+                            .accentProminentButtonStyle()
                             .controlSize(.small)
                         }
                         .padding(.vertical, 4)
@@ -161,7 +161,7 @@ struct VenuesScreen: View {
                                     Button("Enable Location") {
                                         appModel.location.requestOptIn()
                                     }
-                                    .buttonStyle(.borderedProminent)
+                                    .accentProminentButtonStyle()
                                 }
                                 Button("Show All Spaces") {
                                     selectedRegion = .all
@@ -189,7 +189,7 @@ struct VenuesScreen: View {
                                 Button("Show All Spaces") {
                                     selectedRegion = .all
                                 }
-                                .buttonStyle(.borderedProminent)
+                                .accentProminentButtonStyle()
                             }
                         }
                         .padding(.vertical, 24)
