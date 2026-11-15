@@ -88,7 +88,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = appVersionCode
-        versionName = "1.1.0"
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -162,6 +162,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.browser)
+    // Play Integrity and Play services bring androidx.fragment 1.1.0, which Play Console flags as outdated
+    // (production 1.1.0, 2026-11-14). Pin a current one, as Hot Mess does.
+    implementation(libs.androidx.fragment)
 
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
